@@ -1,20 +1,9 @@
 //------------------------------------------------------------------------------
 //
 // PROJECT : Bin2Source
-//
 // FILE    : main.cpp
-//
 // VERSION : 1.0
-//
 // AUTOR   : Martin Steen
-//
-//
-//
-//
-//
-//------------------------------------------------------------------------------
-//
-// CREATED  :
 //
 //------------------------------------------------------------------------------
 
@@ -23,7 +12,6 @@
 #include <CFileIO.h>
 
 using namespace std;
-
 
 enum
 {
@@ -35,6 +23,18 @@ enum
 	DTYPE_USHORT,
 	DTYPE_LONG,
 	DTYPE_ULONG
+};
+
+const char* dataTypeString[]
+{
+	"int8_t",
+	"uint8_t",
+	"int32_t",
+	"uint32_t",
+	"int16_t",
+	"uint16_t",
+	"int64_t",
+	"uint64_t"
 };
 
 
@@ -63,20 +63,58 @@ std::string MakeHexBytes(const unsigned char* bytes, int n)
 }
 
 
+std::string filternameString(const char* str)
+{
+    std::string outstr;
+	for (int i = 0; str[i] != 0; i++)
+	{
+		char c = str[i];
+		if (
+		    ((c >= 'a') && (c <= 'z')) ||
+  		    ((c >= 'A') && (c <= 'Z')) ||  		    
+  		    ((c >= '0') && (c <= '9'))
+           )
+		{
+			outstr += c;
+		}
+		else
+		{
+			outstr += '_';
+		}
+	}
+	return outstr;
+}
+
+
 
 template <typename T>
-bool WriteTextFile(const char* InputFile, bool WriteHex)
+bool WriteTextFile(const char* InputFile, bool WriteHex, int dataType)
 {
 	CFileIO fio;
 	int     FileSize;
 	bool    r = false;
+    const int lineLimit = 32 / sizeof(T);
 
 	const T* FileData = (T*) fio.ReadFile(InputFile, &FileSize);
 	if (FileData != NULL)
 	{
 		int x = 0;
-		char* FldName =     fio.ReplaceApp(InputFile, "");
-		char* SrcFilename = fio.ReplaceApp(InputFile, "fld.cpp");
+		
+		stringvector sp;
+		std::string fname;
+		NStringTool::Split(InputFile, &sp, '/');
+		if (sp.size() > 1)
+		{
+		   fname = sp[sp.size() - 1];
+		}
+		else
+		{
+			fname = InputFile;
+		}
+				
+		std::string FldName = std::string("array_") + filternameString(fio.ReplaceApp(fname.c_str(), ""));
+		char* SrcFilename = fio.ReplaceApp(InputFile, ".cpp");
+		
 		ofstream fout(SrcFilename);
 
 		if (fout.good())
@@ -84,7 +122,7 @@ bool WriteTextFile(const char* InputFile, bool WriteHex)
 			r = true;
 			
 			fout << "#define SIZE_" << FldName << " " << FileSize << '\n';
-			fout << "char " << FldName << "[] = \n";
+			fout << dataTypeString[dataType] << " " << FldName << "[] = \n";
 			fout << "{\n";
 			
 			int DataSize = FileSize / sizeof(T);
@@ -103,7 +141,7 @@ bool WriteTextFile(const char* InputFile, bool WriteHex)
 				if (WriteHex)
 				{
 					fout.setf(std::ios::hex, std::ios::basefield);
-					fout << "0x" << (int) FileData[i];
+					fout << "0x" << FileData[i];
 					
 					//fout << "0x" << MakeHexBytes((unsigned char*) (FileData + i), sizeof(T));
 				}
@@ -117,7 +155,7 @@ bool WriteTextFile(const char* InputFile, bool WriteHex)
 					fout << ',';
 				}
 
-				if (x++ == 32)
+				if (x++ == lineLimit)
 				{
 					fout << '\n';
 					x = 0;
@@ -127,7 +165,7 @@ bool WriteTextFile(const char* InputFile, bool WriteHex)
 			fout.close();
 		}
 
-		delete SrcFilename;
+		delete[] SrcFilename;
 		fio.CloseFile();
 	}	
 	return r;
@@ -160,8 +198,9 @@ int main(int argc, char* argv[])
 	{
 		bool hexwrite = true;
 		int  datatype = DTYPE_UBYTE;
+        int filenameIndex = 1;
 		
-		for (int i = 2; i < argc; i++)
+		for (int i = 1; i < argc; i++)
 		{
 			std::string option = argv[i];
 						
@@ -199,50 +238,52 @@ int main(int argc, char* argv[])
 			{
 				datatype = DTYPE_ULONG;
 			}
-			
-			
+			else
+            {
+              filenameIndex = i;  
+            }
 		}
 		
 		switch (datatype)
 		{	
 			case DTYPE_UBYTE:
 				
-				WriteTextFile<unsigned char>(argv[1], hexwrite);
+				WriteTextFile<uint8_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 				
 			case DTYPE_BYTE:
 				
-				WriteTextFile<char>(argv[1], hexwrite);
+				WriteTextFile<int8_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 
 			case DTYPE_SHORT:
 				
-				WriteTextFile<short>(argv[1], hexwrite);
+				WriteTextFile<int16_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 				
 			case DTYPE_USHORT:
 				
-				WriteTextFile<unsigned short>(argv[1], hexwrite);
+				WriteTextFile<uint16_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 
 			case DTYPE_INT:
 				
-				WriteTextFile<int>(argv[1], hexwrite);
+				WriteTextFile<int32_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 
 			case DTYPE_UINT:
 				
-				WriteTextFile<unsigned int>(argv[1], hexwrite);
+				WriteTextFile<uint32_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 				
 			case DTYPE_LONG:
 				
-				WriteTextFile<long long>(argv[1], hexwrite);
+				WriteTextFile<int64_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 				
 			case DTYPE_ULONG:
 				
-				WriteTextFile<unsigned long long>(argv[1], hexwrite);
+				WriteTextFile<uint64_t>(argv[filenameIndex], hexwrite, datatype);
 				break;
 				
 		}
