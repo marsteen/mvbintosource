@@ -437,16 +437,16 @@ bool CFileIO::OpenFileChange(const char* Filename, int Position)
 
 void* CFileIO::ReadFile(const char* Filename, int* nBytes)
 {
-  char* buffer = NULL;
+  char* buffer = nullptr;
   *nBytes = CFileIO::GetFileSize(Filename);
-  if (nBytes > 0)
+  if (nBytes != nullptr)
   {
 		fstream fs(Filename, ios::in | ios::binary);
 
     if (fs.good())
     {
       buffer = new char[*nBytes+1];
-      if (buffer != NULL)
+      if (buffer != nullptr)
       {
 				fs.read((char*) buffer, *nBytes);
 				fs.close();
